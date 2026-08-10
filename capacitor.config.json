@@ -1,0 +1,19 @@
+{
+  "appId": "com.aswin.chefrush",
+  "appName": "Chef Rush",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#241b33",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#241b33",
+      "showSpinner": false,
+      "launchAutoHide": true
+    }
+  }
+}
