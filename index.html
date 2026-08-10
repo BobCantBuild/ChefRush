@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="theme-color" content="#241b33">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Chef Rush</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <header id="hud" hidden>
+    <span class="pill" id="hud-round">Round 1/8</span>
+
+    <div class="hud-score">
+      <span class="hud-label">SCORE</span>
+      <span id="hud-score">0</span>
+    </div>
+
+    <div class="hud-timer">
+      <svg id="timer-ring" viewBox="0 0 44 44" aria-hidden="true">
+        <circle class="ring-bg" cx="22" cy="22" r="18"></circle>
+        <circle class="ring-fg" cx="22" cy="22" r="18"></circle>
+      </svg>
+      <span id="timer-text">24</span>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="scene"></canvas>
+
+    <section id="recipe" hidden>
+      <div class="recipe-head">
+        <span id="recipe-icon">🍕</span>
+        <div class="recipe-titles">
+          <h2 id="recipe-name">Margherita Pizza</h2>
+          <p id="recipe-progress">0 of 4 in the bowl</p>
+        </div>
+      </div>
+      <ul id="recipe-list"></ul>
+    </section>
+
+    <div id="cook-status" hidden>
+      <div class="cook-bar"><span id="cook-fill"></span></div>
+      <p id="cook-label">Cooking…</p>
+    </div>
+
+    <div id="toast"></div>
+  </main>
+
+  <footer id="tray" hidden>
+    <div id="stations" class="station-bar"></div>
+    <button id="action-btn" class="btn btn-primary" disabled>Mix &amp; Cook</button>
+  </footer>
+
+  <!-- ------------------------------------------------------- overlays --->
+
+  <section id="screen-menu" class="screen is-active">
+    <div class="screen-inner">
+      <p class="eyebrow">Tap fast. Cook right.</p>
+      <h1 class="logo">Chef<span>Rush</span></h1>
+      <p class="tagline">
+        An order lands. Tap what you need — your chef fetches it from the fridge,
+        the pantry or the crates, and gets it in the bowl before the clock runs out.
+      </p>
+
+      <p class="field-label">Choose your chef</p>
+      <div id="char-select" class="char-select">
+        <button type="button" class="char-card is-selected" data-char="female">
+          <span class="char-emoji">👩‍🍳</span>
+          <span class="char-name">Ava</span>
+        </button>
+        <button type="button" class="char-card" data-char="male">
+          <span class="char-emoji">👨‍🍳</span>
+          <span class="char-name">Leo</span>
+        </button>
+      </div>
+
+      <div class="menu-stats">
+        <div><b id="menu-high">0</b><span>Best score</span></div>
+        <div><b>8</b><span>Orders per run</span></div>
+      </div>
+
+      <button id="btn-start" class="btn btn-primary btn-lg">Start cooking</button>
+      <button id="btn-mute" class="btn btn-ghost">🔊 Sound on</button>
+    </div>
+  </section>
+
+  <section id="screen-result" class="screen" hidden>
+    <div class="screen-inner result-inner">
+      <div id="result-stars" class="stars"></div>
+      <h2 id="result-title" class="result-title">Perfect dish!</h2>
+
+      <div class="result-dish">
+        <span id="result-dish-icon">🍕</span>
+        <span id="result-dish-name">Margherita Pizza</span>
+      </div>
+
+      <div id="result-breakdown" class="result-breakdown"></div>
+
+      <ul id="result-math" class="result-math"></ul>
+
+      <div class="result-totals">
+        <div><span>This order</span><b id="result-round-score">+0</b></div>
+        <div><span>Total</span><b id="result-total-score">0</b></div>
+      </div>
+
+      <button id="result-next" class="btn btn-primary btn-lg">Next order</button>
+    </div>
+  </section>
+
+  <section id="screen-gameover" class="screen" hidden>
+    <div class="screen-inner">
+      <p class="eyebrow">Service complete</p>
+      <h2 id="go-rank" class="logo small">Head Chef</h2>
+      <p id="go-record" class="record-badge" hidden>★ New personal best ★</p>
+
+      <div class="go-stats">
+        <div><b id="go-score">0</b><span>Final score</span></div>
+        <div><b id="go-stars">0 / 24</b><span>Stars earned</span></div>
+        <div><b id="go-high">0</b><span>Best ever</span></div>
+      </div>
+
+      <button id="btn-again" class="btn btn-primary btn-lg">Cook again</button>
+      <button id="btn-menu" class="btn btn-ghost">Back to menu</button>
+    </div>
+  </section>
+
+</div>
+
+<noscript>
+  <p style="color:#fff;padding:2rem;font-family:sans-serif">
+    Chef Rush needs JavaScript enabled.
+  </p>
+</noscript>
+
+<script>
+  // The game uses ES modules, and browsers refuse to load those over file://
+  // (CORS blocks it). The CSS still loads, so without this guard the menu
+  // renders perfectly and every button is silently dead. Inline non-module
+  // scripts DO run over file://, which is why the check lives here.
+  if (location.protocol === 'file:') {
+    document.addEventListener('DOMContentLoaded', function () {
+      var app = document.getElementById('app');
+      app.innerHTML = '';
+      var box = document.createElement('div');
+      box.className = 'fatal';
+      box.innerHTML =
+        '<h2>Serve this over HTTP</h2>' +
+        '<p>Chef Rush uses JavaScript modules, which browsers block when a page ' +
+        'is opened straight from the filesystem. Nothing will respond until it is ' +
+        'served.</p>' +
+        '<p>Run this from the project folder:</p>' +
+        '<code>py -m http.server 8080 --directory www</code>' +
+        '<p>then open <b>http://localhost:8080</b></p>';
+      app.appendChild(box);
+    });
+  }
+</script>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
