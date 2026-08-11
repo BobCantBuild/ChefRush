@@ -170,7 +170,7 @@ function wireCanvasInput(canvas) {
   canvas.addEventListener('pointercancel', () => { press = null; });
 }
 
-/** Rebuilds the tap targets for whatever the camera is currently showing. */
+/** Rebuilds the tap targets: a selected station's items, else the station signs. */
 function refreshTargets() {
   picker.clear();
   if (game.phase !== Phase.PICKING) return;
@@ -178,7 +178,7 @@ function refreshTargets() {
   if (activeStation) {
     items.registerTargets(picker, activeStation);
   } else {
-    // wide view: the station signs themselves are tappable
+    // nothing selected: the station signs themselves are tappable
     for (const id of Object.keys(STORES)) {
       const st = stations.stations[id];
       const sign = st.group.children.find((c) => c.isSprite);
@@ -333,27 +333,19 @@ function setupRound() {
 async function handleStationSelect(id) {
   if (game.phase !== Phase.PICKING || busy) return;
 
-  // tapping the station you are already in zooms back out
+  // tapping the active station again clears the selection
   const next = activeStation === id ? null : id;
   activeStation = next;
 
   SFX.press();
   setActiveStation(next);
   items.showLabelsFor(next);
-  stations.setSignsVisible(next === null);
+  // The camera never moves now, so the station signs stay visible throughout —
+  // selecting a station just reveals its items and swings the fridge open.
+  stations.setSignsVisible(true);
   picker.clear();
 
-  if (next === null) {
-    await Promise.all([
-      stations.stations.fridge.setOpen(false),
-      cameraRig.moveTo('wide', 460),
-    ]);
-  } else {
-    const opening = stations.stations[next].needsOpen
-      ? stations.stations[next].setOpen(true)
-      : Promise.resolve();
-    await Promise.all([opening, cameraRig.moveTo(next, 460)]);
-  }
+  await stations.stations.fridge.setOpen(next === 'fridge');
   refreshTargets();
 }
 
@@ -471,7 +463,7 @@ async function cookSequenceBody() {
 
   const ingredients = [...game.picked].map(getIngredient);
 
-  await Promise.all([cameraRig.moveTo('counter', 420), chef.moveTo(CHEF_X.counter, 260)]);
+  await chef.moveTo(CHEF_X.counter, 260);
 
   SFX.mix();
   await bowl.mix(ingredients);
@@ -480,7 +472,6 @@ async function cookSequenceBody() {
   State.beginCooking();
   label.textContent = 'Into the oven…';
 
-  cameraRig.moveTo('wide', 460);
   await chef.carryPose(220);
   await Promise.all([
     oven.swingDoor(true),
@@ -506,7 +497,6 @@ async function cookSequenceBody() {
   status.hidden = true;
 
   await oven.swingDoor(true);
-  await cameraRig.moveTo('counter', 380);
   revealPlate(ingredients);
   await tween({ duration: 800 }).promise;
 

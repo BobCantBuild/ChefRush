@@ -60,9 +60,9 @@ export function createOven() {
     group.add(btn);
   }
 
-  // IFB brand plate above the control buttons. Fixed to the body (not the door)
+  // IFB nameplate above the control buttons. Fixed to the body (not the door)
   // so it stays put and readable while the microwave door swings.
-  const brand = createBrandPlate('IFB', 0.34);
+  const brand = createBrandPlate('IFB', 0.2);
   brand.position.set(1.32, 1.66, 0.965);
   group.add(brand);
 
