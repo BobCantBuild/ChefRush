@@ -43,14 +43,9 @@ export function createKitchenItems(scene, stations) {
         // Alternating their height keeps every name readable.
         const stagger = (i % 2) * 0.135;
         const label = createLabel(ing.label, 0.165);
-        // Produce lies flat in crates under a steep camera, so its tag sits in
-        // front of the item; fridge and pantry items stand up, so theirs hangs
-        // below.
-        label.position.copy(home).add(
-          store === 'produce'
-            ? new THREE.Vector3(0, 0.06 + stagger * 1.2, 0.28)
-            : new THREE.Vector3(0, -0.2 - stagger, 0.02),
-        );
+        // Fridge and pantry items stand upright on their shelves, so the tag
+        // hangs just below each one.
+        label.position.copy(home).add(new THREE.Vector3(0, -0.2 - stagger, 0.02));
         label.visible = false;
 
         group.add(mesh, label);

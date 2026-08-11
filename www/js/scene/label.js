@@ -68,6 +68,62 @@ function makeTexture(text) {
 }
 
 /**
+ * A flat, unlit brand nameplate (an appliance logo). Unlike createLabel it
+ * returns a plane rather than a sprite, so it stays fixed to whatever it is
+ * mounted on instead of turning to face the camera — and it is drawn unlit so
+ * the brand colour reads the same regardless of the dim kitchen lighting.
+ *
+ * @param {string} text
+ * @param {number} height world-space height of the plate
+ * @returns {THREE.Mesh}
+ */
+export function createBrandPlate(text, height = 0.3, bg = '#e4032e', fg = '#ffffff') {
+  const key = `brand:${text}:${bg}:${fg}`;
+  let entry = cache.get(key);
+
+  if (!entry) {
+    const H = 96;
+    const font = Math.floor(H * 0.62);
+    const measure = document.createElement('canvas').getContext('2d');
+    measure.font = `800 ${font}px "Segoe UI", system-ui, sans-serif`;
+    const w = Math.ceil(measure.measureText(text).width) + 56;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(2, 2, w - 4, H - 4, 18);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.fillStyle = fg;
+    ctx.font = `800 ${font}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, w / 2, H / 2 + 3);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    entry = { tex, aspect: w / H };
+    cache.set(key, entry);
+  }
+
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(height * entry.aspect, height),
+    new THREE.MeshBasicMaterial({ map: entry.tex, transparent: true }),
+  );
+  mesh.userData.isBrand = true;
+  return mesh;
+}
+
+/**
  * @param {string} text
  * @param {number} height world-space height of the tag
  * @returns {THREE.Sprite}

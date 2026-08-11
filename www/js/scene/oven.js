@@ -1,6 +1,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { CONFIG } from '../config.js';
 import { Ease, lerp, tween } from '../util/anim.js';
+import { createBrandPlate } from './label.js';
 
 /** Sits on the back counter run, to the right of the pantry. */
 export const OVEN_POS = new THREE.Vector3(2.25, 1.03, -3.0);
@@ -58,6 +59,12 @@ export function createOven() {
     btn.position.set(1.32, 1.42 - i * 0.3, 0.96);
     group.add(btn);
   }
+
+  // IFB brand plate above the control buttons. Fixed to the body (not the door)
+  // so it stays put and readable while the microwave door swings.
+  const brand = createBrandPlate('IFB', 0.34);
+  brand.position.set(1.32, 1.66, 0.965);
+  group.add(brand);
 
   // Door hinges on its left edge, so the pivot sits there rather than at centre.
   const door = new THREE.Group();

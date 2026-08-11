@@ -284,7 +284,6 @@ function remainingCounts() {
   return {
     fridge: grouped.fridge.length,
     pantry: grouped.pantry.length,
-    produce: grouped.produce.length,
   };
 }
 

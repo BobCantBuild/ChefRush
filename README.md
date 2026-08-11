@@ -1,9 +1,9 @@
 # Chef Rush
 
 A mobile cooking game set in a 3D kitchen. An order arrives with its recipe;
-you tap what you need and your chef fetches it — from the fridge, the wall
-pantry or the produce crates — carries it back and drops it in the bowl. Mix,
-microwave, and get graded. Eight orders per run, scored 0–3 stars each.
+you tap what you need and your chef fetches it — from the IFB fridge or the
+wall pantry — carries it back and drops it in the bowl. Mix, microwave (also
+IFB), and get graded. Eight orders per run, scored 0–3 stars each.
 
 Built with plain HTML / CSS / JavaScript and **three.js**. There is **no build
 step** — the browser loads the modules directly, so what you run locally is
@@ -33,12 +33,15 @@ JS and CSS heuristically — which makes an edit look like it did nothing.
 | **Cook** | The chef carries the bowl to the microwave, the door shuts, and the timer runs. |
 | **Score** | The plate is revealed and the order is graded. |
 
-Ingredients live in one of three stations, and the recipe card shows a badge
-(❄️ 🫙 🧺) next to each item so you know where to look:
+Ingredients live in one of two stations, and the recipe card shows a badge
+(❄️ 🫙) next to each item so you know where to look:
 
-- **Fridge** — dairy, eggs, meat and fish. The door has to open first.
-- **Pantry** — dry goods on open wall shelves.
-- **Produce** — fruit and vegetables in crates on the island.
+- **Fridge** — dairy, eggs, meat, fish and the fresh crisper vegetables. The
+  door has to open first, revealing a fully stocked interior.
+- **Pantry** — dry goods and room-temperature produce on open wall shelves,
+  packed with jars and bottles.
+
+Both appliances — the fridge and the microwave — carry **IFB** branding.
 
 You pick your chef (Ava or Leo) on the menu; the choice is remembered.
 
@@ -79,7 +82,7 @@ www/                    Everything that ships. Capacitor's webDir.
       renderer.js         scene, camera, lights, DPR cap
       cameraRig.js        glides between the wide shot and each station framing
       kitchen.js          room: floor, wall, counter runs, cabinets
-      stations.js         fridge / pantry / produce furniture, slot grids, framings
+      stations.js         fridge / pantry furniture, decor, slot grids, framings
       kitchenItems.js     places a round's ingredients into slots, owns name tags
       chef.js             procedural character + walk / reach animation
       label.js            canvas-texture name tags
@@ -113,7 +116,7 @@ Both catalogs are plain data — no code change required.
 
 ```js
 // www/js/data/ingredients.js
-{ id: 'leek', label: 'Leek', icon: '🥬', color: 0x9ccc65, shape: 'cylinder', scale: 1.0 }
+{ id: 'leek', label: 'Leek', icon: '🥬', color: 0x9ccc65, shape: 'cylinder', scale: 1.0, store: 'pantry' }
 
 // www/js/data/dishes.js
 { id: 'soup', name: 'Leek Soup', icon: '🍲', difficulty: 2,
