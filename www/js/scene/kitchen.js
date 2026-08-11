@@ -11,40 +11,68 @@ function box(w, h, d, mat, x, y, z) {
   return m;
 }
 
+// A warm, bright kitchen palette: sage cabinetry, honey-wood floor, cream
+// walls, a butcher-block worktop and a cream-tiled splashback.
+const FLOOR   = 0x9c6a3c;
+const WALL    = 0xece0c6;
+const TILE    = 0xf4ecdb;
+const CABINET = 0x9fb083;
+const WORKTOP = 0xcaa063;
+const KNOB    = 0xcbd0d8;
+
 export function createKitchen() {
   const group = new THREE.Group();
 
-  const counterBase = lambert(0x6d4a8f);
-  const counterTop = lambert(0xc98a54);
+  const counterBase = lambert(CABINET);
+  const counterTop = lambert(WORKTOP);
 
-  // floor + back wall
-  group.add(box(16, 0.3, 13, lambert(0x4a3a63), 0, -0.15, -0.5));
-  group.add(box(16, 8, 0.3, lambert(0x33254a), 0, 4, -4.7));
+  // honey-wood floor + cream back wall, with a warm skirting band
+  group.add(box(16, 0.3, 13, lambert(FLOOR), 0, -0.15, -0.5));
+  group.add(box(16, 8, 0.3, lambert(WALL), 0, 4, -4.7));
+  group.add(box(16, 0.4, 0.14, lambert(0xd8c7a6), 0, 0.2, -4.5)); // skirting
 
-  // tiled splashback behind the back counter
-  const tile = lambert(0x3e2d59);
-  for (let i = -4; i <= 5; i++) {
-    group.add(box(0.72, 0.72, 0.1, tile, i * 0.8, 1.5, -4.5));
+  // tiled splashback — two rows so the wall behind the worktop reads as tiled
+  const tile = lambert(TILE);
+  const grout = lambert(0xd7ccb6);
+  for (let row = 0; row < 2; row++) {
+    const y = 1.5 + row * 0.78;
+    group.add(box(9.0, 0.76, 0.06, grout, 0.4, y, -4.53)); // grout backing
+    for (let i = -4; i <= 5; i++) {
+      group.add(box(0.72, 0.72, 0.1, tile, i * 0.8, y, -4.5));
+    }
   }
 
   // back counter run (the microwave sits on this)
   group.add(box(4.8, 1.0, 1.3, counterBase, 1.3, 0.5, -3.0));
   group.add(box(4.9, 0.12, 1.4, counterTop, 1.3, 1.03, -3.0));
+  addKnobs(group, 1.3, 4.8, -2.34);
 
   // Front island (the mixing bowl lives here). Kept shallow on purpose: a
   // deeper top surface cuts the camera's line of sight to the chef standing
   // behind it and hides them from the waist down.
   group.add(box(4.2, 1.0, 1.2, counterBase, -0.5, 0.5, 0.3));
   group.add(box(4.3, 0.12, 1.3, counterTop, -0.5, 1.03, 0.3));
+  addKnobs(group, -0.5, 4.2, 0.91);
 
-  // upper cabinets
-  const cab = lambert(0x5b4780);
+  // upper cabinets with little steel knobs
+  const cab = lambert(CABINET);
   group.add(box(4.6, 1.2, 0.55, cab, 1.4, 4.15, -4.35));
   for (let i = 0; i < 3; i++) {
-    group.add(box(0.06, 0.16, 0.08, lambert(0xd9dde4), 0.1 + i * 1.5, 3.62, -4.05));
+    group.add(box(0.08, 0.18, 0.09, lambert(KNOB), 0.1 + i * 1.5, 3.62, -4.05));
   }
 
   return group;
+}
+
+/** A row of small knobs across the front of a base-cabinet run. */
+function addKnobs(group, centerX, width, z) {
+  const n = Math.max(2, Math.round(width / 1.2));
+  for (let i = 0; i < n; i++) {
+    const x = centerX - width / 2 + (width / n) * (i + 0.5);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), lambert(KNOB));
+    knob.position.set(x, 0.72, z);
+    group.add(knob);
+  }
 }
 
 /** Soft dark ellipse used instead of a shadow map. */
