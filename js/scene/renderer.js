@@ -1,6 +1,6 @@
 import * as THREE from '../../vendor/three.module.js';
 
-export const BG_COLOR = 0x241b33;
+export const BG_COLOR = 0xcdb488;
 
 let renderer, scene, camera, canvas;
 
@@ -26,13 +26,14 @@ export function initRenderer(canvasEl) {
   camera.position.set(0, 3.5, 6.4);
   camera.lookAt(0, 1.05, -0.2);
 
-  scene.add(new THREE.HemisphereLight(0xfff0e0, 0x30204a, 1.25));
+  // warm sky, warm bounce off the wood floor — reads as a sunlit kitchen
+  scene.add(new THREE.HemisphereLight(0xfff2e0, 0x8a6a44, 1.2));
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.5);
+  const key = new THREE.DirectionalLight(0xfff4e6, 1.45);
   key.position.set(3.5, 7, 5);
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0xff9f6e, 0.55);
+  const rim = new THREE.DirectionalLight(0xffb27a, 0.5);
   rim.position.set(-4, 2.5, -4);
   scene.add(rim);
 
