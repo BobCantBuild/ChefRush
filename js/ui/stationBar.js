@@ -4,7 +4,7 @@ import { STORES } from '../data/ingredients.js';
 // these are big, reliable thumb targets. Ingredients themselves are still
 // tapped directly in the 3D scene.
 
-const ORDER = ['fridge', 'pantry', 'produce'];
+const ORDER = ['fridge', 'pantry'];
 
 let barEl;
 let selectHandler = null;

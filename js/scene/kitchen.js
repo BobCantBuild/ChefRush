@@ -31,9 +31,9 @@ export function createKitchen() {
   group.add(box(4.8, 1.0, 1.3, counterBase, 1.3, 0.5, -3.0));
   group.add(box(4.9, 0.12, 1.4, counterTop, 1.3, 1.03, -3.0));
 
-  // Front island (produce crates + mixing bowl live here). Kept shallow on
-  // purpose: a deeper top surface cuts the camera's line of sight to the chef
-  // standing behind it and hides them from the waist down.
+  // Front island (the mixing bowl lives here). Kept shallow on purpose: a
+  // deeper top surface cuts the camera's line of sight to the chef standing
+  // behind it and hides them from the waist down.
   group.add(box(4.2, 1.0, 1.2, counterBase, -0.5, 0.5, 0.3));
   group.add(box(4.3, 0.12, 1.3, counterTop, -0.5, 1.03, 0.3));
 
