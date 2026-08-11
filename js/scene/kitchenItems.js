@@ -65,11 +65,16 @@ export function createKitchenItems(scene, stations) {
     return items.get(id);
   }
 
-  /** Registers every still-available item at `store` as a tap target. */
+  /**
+   * Registers every still-available item at `store` as a tap target. The hit
+   * radius is generous: the camera now stays in the wide shot, so items are
+   * smaller on screen and need a forgiving tap area. The picker resolves any
+   * overlap in favour of the nearest item, so neighbours don't get mis-tapped.
+   */
   function registerTargets(picker, store) {
     for (const [id, it] of items) {
       if (it.taken || it.store !== store) continue;
-      picker.addTarget(it.home, 0.3, { kind: 'ingredient', id });
+      picker.addTarget(it.home, 0.4, { kind: 'ingredient', id });
     }
   }
 

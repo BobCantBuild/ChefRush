@@ -93,10 +93,10 @@ function buildFridge() {
   door.add(box(W, H - 0.06, 0.1, steel(), W / 2, 0, 0));
   door.add(box(0.08, 0.7, 0.12, steelDk(), W - 0.16, -0.1, 0.08)); // handle
 
-  // IFB brand plate on the door front, high enough to clear the handle. It is a
-  // plane (not a sprite) so it swings with the door instead of floating.
-  const badge = createBrandPlate('IFB', 0.34);
-  badge.position.set(0.62, 0.95, 0.06);
+  // IFB nameplate, centred on the door and clear of the handle. It swings with
+  // the door and is a lit metal badge, so it reads as built into the appliance.
+  const badge = createBrandPlate('IFB', 0.24);
+  badge.position.set(0.75, 0.98, 0.06);
   door.add(badge);
 
   // bottles on the inside of the door — they ride along when it swings open
