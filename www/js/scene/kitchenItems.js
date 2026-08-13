@@ -9,6 +9,9 @@ import { createLabel } from './label.js';
 // both work with plain world coordinates.
 
 const ITEM_SCALE = 0.62;
+// Every name tag is visible at once from the fixed wide camera, so they have to
+// stay legible at that distance rather than only when zoomed in.
+const LABEL_H = 0.26;
 
 export function createKitchenItems(scene, stations) {
   const group = new THREE.Group();
@@ -38,15 +41,16 @@ export function createKitchenItems(scene, stations) {
         const home = stations.slotWorld(store, i, list.length);
         mesh.position.copy(home);
 
-        // Adjacent columns sit ~70px apart on screen but a long name like
-        // "Strawberry" renders ~90px wide, so neighbouring tags would collide.
-        // Alternating their height keeps every name readable.
-        const stagger = (i % 2) * 0.135;
-        const label = createLabel(ing.label, 0.165);
+        // Adjacent columns sit close together on screen but a long name like
+        // "Strawberry" renders much wider, so neighbouring tags would collide.
+        // Alternating their height keeps every name readable — which matters
+        // more now that every tag is on screen at once.
+        const stagger = (i % 2) * 0.15;
+        const label = createLabel(ing.label, LABEL_H);
         // Fridge and pantry items stand upright on their shelves, so the tag
         // hangs just below each one.
-        label.position.copy(home).add(new THREE.Vector3(0, -0.2 - stagger, 0.02));
-        label.visible = false;
+        label.position.copy(home).add(new THREE.Vector3(0, -0.22 - stagger, 0.04));
+        label.visible = true;
 
         group.add(mesh, label);
         items.set(id, { mesh, label, store, home: home.clone(), taken: false });
@@ -54,10 +58,14 @@ export function createKitchenItems(scene, stations) {
     }
   }
 
-  /** Name tags are only shown for the station currently zoomed in on. */
-  function showLabelsFor(store) {
+  /**
+   * Shows or hides every name tag at once. Tags stay up for the whole picking
+   * phase — you can read the entire kitchen without tapping into a station —
+   * and are hidden as a group while the dish is being cooked.
+   */
+  function setLabelsVisible(visible) {
     for (const it of items.values()) {
-      it.label.visible = !it.taken && it.store === store;
+      it.label.visible = visible && !it.taken;
     }
   }
 
@@ -66,15 +74,15 @@ export function createKitchenItems(scene, stations) {
   }
 
   /**
-   * Registers every still-available item at `store` as a tap target. The hit
-   * radius is generous: the camera now stays in the wide shot, so items are
-   * smaller on screen and need a forgiving tap area. The picker resolves any
-   * overlap in favour of the nearest item, so neighbours don't get mis-tapped.
+   * Registers every still-available item, at both stations, as a tap target.
+   * The hit radius is generous: the camera stays in the fixed wide shot, so
+   * items are small on screen and need a forgiving tap area. The picker
+   * resolves overlaps in favour of the nearest, so neighbours aren't mis-hit.
    */
-  function registerTargets(picker, store) {
+  function registerTargets(picker) {
     for (const [id, it] of items) {
-      if (it.taken || it.store !== store) continue;
-      picker.addTarget(it.home, 0.4, { kind: 'ingredient', id });
+      if (it.taken) continue;
+      picker.addTarget(it.home, 0.34, { kind: 'ingredient', id });
     }
   }
 
@@ -88,7 +96,7 @@ export function createKitchenItems(scene, stations) {
   }
 
   /** Puts an item back in its slot (player tapped it again to remove it). */
-  function restore(id, showLabel) {
+  function restore(id, showLabel = true) {
     const it = items.get(id);
     if (!it) return;
     it.taken = false;
@@ -117,5 +125,5 @@ export function createKitchenItems(scene, stations) {
     return [...set];
   }
 
-  return { build, clear, get, take, restore, consume, showLabelsFor, registerTargets, storesInUse };
+  return { build, clear, get, take, restore, consume, setLabelsVisible, registerTargets, storesInUse };
 }

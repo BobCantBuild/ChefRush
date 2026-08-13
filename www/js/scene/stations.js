@@ -144,7 +144,7 @@ function buildFridge() {
   // 3 across, on the interior boards
   const slot = gridSlot(3, 0.45, (x, row) => new THREE.Vector3(x, 2.02 - row * 0.62, 0.06));
 
-  return { group, slot, setOpen, needsOpen: true };
+  return { group, slot, setOpen };
 }
 
 // ============================================================== pantry ===
@@ -179,16 +179,21 @@ function buildPantry() {
   // inside the zoomed camera framing, or edge items land off-screen.
   const slot = gridSlot(3, 0.6, (x, row) => new THREE.Vector3(x, 2.98 - row * 0.78, 0.34));
 
-  return { group, slot, setOpen: () => Promise.resolve(), needsOpen: false };
+  return { group, slot, setOpen: () => Promise.resolve() };
 }
 
 // ================================================================ api ===
-/** Camera framings, in world space. */
+/**
+ * Camera framings, in world space.
+ *
+ * `wide` is the only one the game uses now: it is angled in close enough that
+ * every name tag at both stations is readable without tapping into a station,
+ * while still keeping the island, the bowl and the whole chef in shot. Moving
+ * it further out shrinks the tags past legibility, so change it with care.
+ */
 export const FRAMING = {
-  wide:    { pos: new THREE.Vector3(0, 5.6, 8.0),      target: new THREE.Vector3(0, 2.85, -2.0) },
-  fridge:  { pos: new THREE.Vector3(-1.9, 2.55, 0.55), target: new THREE.Vector3(-2.05, 1.75, -3.25) },
-  pantry:  { pos: new THREE.Vector3(0.75, 2.9, 0.15),  target: new THREE.Vector3(0.75, 2.6, -4.28) },
-  counter: { pos: new THREE.Vector3(-0.6, 2.8, 3.6),   target: new THREE.Vector3(-0.7, 1.25, -0.8) },
+  wide:    { pos: new THREE.Vector3(-0.4, 4.3, 5.6),  target: new THREE.Vector3(-0.5, 2.3, -3.3) },
+  counter: { pos: new THREE.Vector3(-0.6, 2.8, 3.6),  target: new THREE.Vector3(-0.7, 1.25, -0.8) },
 };
 
 /** Where the chef stands to work each station. */

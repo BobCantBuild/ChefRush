@@ -1,21 +1,30 @@
 import * as THREE from '../../vendor/three.module.js';
 import { Ease, lerp, tween } from '../util/anim.js';
 
-// A simple, clean kitchen character built from primitives in the same
-// flat-shaded style as the food: chef whites, an apron, a toque and a plain
-// friendly face. Reaching points the whole arm at a target rather than solving
-// IK — at this scale it looks the same and costs nothing.
+// A simple kitchen character built from primitives in the same flat-shaded
+// style as the food. The chef turns on the spot to face where they are walking
+// and what they are reaching for, so they read as moving through the kitchen
+// rather than sliding sideways.
+//
+// Yaw convention: the face is built on +Z, so rotation.y = 0 faces the camera.
+
+export const FACE = {
+  camera: 0,
+  shelf: Math.PI,      // the back wall, where both stations live
+  right: Math.PI / 2,
+  left: -Math.PI / 2,
+};
 
 export const CHARACTERS = {
   female: {
     id: 'female', label: 'Ava', icon: '👩‍🍳',
     skin: 0xe8b48c, hair: 0x3a2318, apron: 0xef5f8c, shirt: 0xfdf4e8,
-    shoulders: 0.44, hairStyle: 'long',
+    shoulders: 0.42, build: 0.95, hairStyle: 'bun',
   },
   male: {
     id: 'male', label: 'Leo', icon: '👨‍🍳',
     skin: 0xd99b6c, hair: 0x241a12, apron: 0x3d8bd6, shirt: 0xfdf4e8,
-    shoulders: 0.52, hairStyle: 'short',
+    shoulders: 0.56, build: 1.06, hairStyle: 'short',
   },
 };
 
@@ -24,6 +33,7 @@ export const CHARACTERS = {
 const REST_Z = -1.95;
 const REST_X = -0.85;
 const ARM_LEN = 0.78;
+const TWO_PI = Math.PI * 2;
 
 const mat = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
 const darken = (hex, f = 0.8) => new THREE.Color(hex).multiplyScalar(f).getHex();
@@ -70,6 +80,7 @@ export function createChef(characterId = 'female') {
   root.position.set(REST_X, 0, REST_Z);
 
   const body = new THREE.Group(); // everything that bobs
+  body.scale.setScalar(preset.build);
   root.add(body);
 
   // legs (pivot at the hip so the swing looks like a stride)
@@ -101,12 +112,16 @@ export function createChef(characterId = 'female') {
   head.add(ball(0.045, eyeMat, 0.1, 0.03, 0.25));
   head.add(box(0.1, 0.025, 0.02, mat(0x7a4a3a), 0, -0.08, 0.255)); // small mouth
 
-  // hair
-  if (preset.hairStyle === 'long') {
-    head.add(new THREE.Mesh(new THREE.SphereGeometry(0.29, 12, 9, 0, Math.PI * 2, 0, Math.PI * 0.62), mat(preset.hair)));
-    head.add(box(0.46, 0.44, 0.26, mat(preset.hair), 0, -0.16, -0.1));
+  // hair — the clearest way to tell the two characters apart at a glance
+  const hairMat = mat(preset.hair);
+  if (preset.hairStyle === 'bun') {
+    head.add(new THREE.Mesh(new THREE.SphereGeometry(0.29, 12, 9, 0, TWO_PI, 0, Math.PI * 0.6), hairMat));
+    head.add(box(0.42, 0.3, 0.22, hairMat, 0, -0.13, -0.11)); // nape
+    head.add(ball(0.15, hairMat, 0, 0.06, -0.29));            // bun at the back
   } else {
-    head.add(new THREE.Mesh(new THREE.SphereGeometry(0.29, 12, 9, 0, Math.PI * 2, 0, Math.PI * 0.46), mat(preset.hair)));
+    head.add(new THREE.Mesh(new THREE.SphereGeometry(0.29, 12, 9, 0, TWO_PI, 0, Math.PI * 0.44), hairMat));
+    head.add(box(0.04, 0.16, 0.16, hairMat, -0.25, 0.0, 0.04)); // sideburns
+    head.add(box(0.04, 0.16, 0.16, hairMat, 0.25, 0.0, 0.04));
   }
 
   // chef's toque: a band with a soft puffy crown
@@ -129,6 +144,7 @@ export function createChef(characterId = 'female') {
   let bobT = 0;
   let walking = false;
   let posed = false; // true while an arm is aimed (reaching / carrying)
+  let turn = null;
 
   // ------------------------------------------------------------- api ---
   function update(dtMs) {
@@ -158,9 +174,33 @@ export function createChef(characterId = 'female') {
     return armR.userData.hand.getWorldPosition(new THREE.Vector3());
   }
 
+  /** Turns the whole chef on the spot to a yaw, always the short way round. */
+  function turnTo(yaw, ms = 180) {
+    const from = root.rotation.y;
+    let delta = (yaw - from) % TWO_PI;
+    if (delta > Math.PI) delta -= TWO_PI;
+    if (delta < -Math.PI) delta += TWO_PI;
+    if (Math.abs(delta) < 0.02) return Promise.resolve();
+
+    if (turn) turn.cancel();
+    turn = tween({
+      duration: ms,
+      ease: Ease.quadOut,
+      onUpdate: (t) => { root.rotation.y = from + delta * t; },
+      onComplete: () => { turn = null; },
+    });
+    return turn.promise;
+  }
+
   function moveTo(x, ms = 320) {
     const from = root.position.x;
-    if (Math.abs(from - x) < 0.02) return Promise.resolve();
+    const dist = x - from;
+    if (Math.abs(dist) < 0.02) return Promise.resolve();
+
+    // Face the way we're about to walk. Deliberately not awaited: the turn
+    // plays over the first part of the stride instead of stalling it.
+    turnTo(dist > 0 ? FACE.right : FACE.left, Math.min(170, ms * 0.5));
+
     walking = true;
     return tween({
       duration: ms,
@@ -181,7 +221,13 @@ export function createChef(characterId = 'female') {
     posed = true;
     const shoulder = armR.getWorldPosition(new THREE.Vector3());
     tmpV.copy(worldTarget).sub(shoulder).normalize();
-    const goal = new THREE.Quaternion().setFromUnitVectors(UP_DOWN, tmpV);
+    const goalWorld = new THREE.Quaternion().setFromUnitVectors(UP_DOWN, tmpV);
+
+    // armR.quaternion is relative to its parent, so strip the parent's world
+    // rotation — without this, turning the chef swings every reach off target.
+    const parentInv = armR.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const goal = parentInv.multiply(goalWorld);
+
     const from = armR.quaternion.clone();
     return tween({
       duration: ms,
@@ -218,15 +264,17 @@ export function createChef(characterId = 'female') {
 
   function resetPose() {
     posed = false;
+    if (turn) { turn.cancel(); turn = null; }
     armL.quaternion.copy(restQuat);
     armR.quaternion.copy(restQuat);
     armL.rotation.x = 0;
     armR.rotation.x = 0;
     root.position.set(REST_X, 0, REST_Z);
+    root.rotation.y = FACE.camera;
     body.position.y = 0;
     body.rotation.x = 0;
     walking = false;
   }
 
-  return { root, update, moveTo, reachAt, lowerArm, carryPose, resetPose, handWorld, preset };
+  return { root, update, moveTo, turnTo, reachAt, lowerArm, carryPose, resetPose, handWorld, preset };
 }

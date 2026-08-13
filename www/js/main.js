@@ -2,14 +2,14 @@ import * as THREE from '../vendor/three.module.js';
 
 import { CONFIG } from './config.js';
 import { SFX, isMuted, setMuted, unlockAudio } from './audio.js';
-import { STORES, getIngredient, groupByStore } from './data/ingredients.js';
+import { getIngredient, groupByStore } from './data/ingredients.js';
 import { Phase, game, on } from './state.js';
 import * as State from './state.js';
 import { Ease, clearTweens, tween, updateTweens } from './util/anim.js';
 import { getCharacter, setCharacter } from './storage.js';
 
 import { createBowl } from './scene/bowl.js';
-import { createChef } from './scene/chef.js';
+import { FACE, createChef } from './scene/chef.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createKitchen } from './scene/kitchen.js';
 import { createKitchenItems } from './scene/kitchenItems.js';
@@ -22,7 +22,7 @@ import { initHud, setRound, setScore, setTimer, updateScoreCounter } from './ui/
 import { initRecipeCard, renderRecipe, updateRecipeProgress } from './ui/recipeCard.js';
 import { renderGameOver, renderResult } from './ui/results.js';
 import {
-  initStationBar, lockStationBar, renderStationBar, setActiveStation, updateStationCounts,
+  initStationBar, lockStationBar, renderStationBar, updateStationCounts,
 } from './ui/stationBar.js';
 import { showGameChrome, showScreen, toast } from './ui/screens.js';
 
@@ -36,7 +36,6 @@ const PLATE_POS = new THREE.Vector3(-0.95, 1.06, 0.4);
 let scene, camera, cameraRig, stations, chef, bowl, oven, items, picker;
 let currentPlate = null;
 let carried = null;          // mesh currently in the chef's hand
-let activeStation = null;    // station the camera is zoomed into
 let characterId = getCharacter();
 
 let lastFrame = 0;
@@ -69,7 +68,7 @@ function init() {
 
   initHud();
   initRecipeCard();
-  initStationBar(handleStationSelect);
+  initStationBar();
   wireCanvasInput(canvas);
   wireButtons();
   wireState();
@@ -163,30 +162,20 @@ function wireCanvasInput(canvas) {
     const hit = picker.pickAt(ev.clientX, ev.clientY);
     if (!hit) return;
 
-    if (hit.kind === 'station') handleStationSelect(hit.id);
-    else if (hit.kind === 'ingredient') handleIngredientTap(hit.id);
+    if (hit.kind === 'ingredient') handleIngredientTap(hit.id);
   });
 
   canvas.addEventListener('pointercancel', () => { press = null; });
 }
 
-/** Rebuilds the tap targets: a selected station's items, else the station signs. */
+/**
+ * Rebuilds the tap targets. Every remaining item at both stations is tappable
+ * for the whole picking phase — there is no station to drill into any more.
+ */
 function refreshTargets() {
   picker.clear();
   if (game.phase !== Phase.PICKING) return;
-
-  if (activeStation) {
-    items.registerTargets(picker, activeStation);
-  } else {
-    // nothing selected: the station signs themselves are tappable
-    for (const id of Object.keys(STORES)) {
-      const st = stations.stations[id];
-      const sign = st.group.children.find((c) => c.isSprite);
-      if (!sign) continue;
-      const world = sign.getWorldPosition(new THREE.Vector3());
-      picker.addTarget(world, 0.75, { kind: 'station', id });
-    }
-  }
+  items.registerTargets(picker);
 }
 
 // ========================================================== wiring ===
@@ -265,7 +254,6 @@ function resetScene() {
   items.clear();
   carried = null;
   busy = false;
-  activeStation = null;
   chef.resetPose();
   stations.stations.fridge.setOpen(false);
   stations.setSignsVisible(true);
@@ -291,23 +279,22 @@ function setupRound() {
   lowTimeWarned = false;
   busy = false;
   carried = null;
-  activeStation = null;
 
   bowl.clear();
   bowl.group.visible = true;
   oven.swingDoor(false);
   oven.setCooking(false);
-  stations.stations.fridge.setOpen(false);
   stations.setSignsVisible(true);
   clearPlate();
   chef.resetPose();
 
   items.build(game.shelf);
-  items.showLabelsFor(null);
+  // Everything is readable and tappable from the off: tags up, fridge open.
+  items.setLabelsVisible(true);
+  stations.stations.fridge.setOpen(true);
 
   renderRecipe(game.dish);
   renderStationBar(remainingCounts());
-  setActiveStation(null);
   lockStationBar(false);
   updateRecipeProgress(new Set());
 
@@ -327,26 +314,6 @@ function setupRound() {
     State.beginPicking();
     refreshTargets();
   });
-}
-
-// ------------------------------------------------------- stations ---
-async function handleStationSelect(id) {
-  if (game.phase !== Phase.PICKING || busy) return;
-
-  // tapping the active station again clears the selection
-  const next = activeStation === id ? null : id;
-  activeStation = next;
-
-  SFX.press();
-  setActiveStation(next);
-  items.showLabelsFor(next);
-  // The camera never moves now, so the station signs stay visible throughout —
-  // selecting a station just reveals its items and swings the fridge open.
-  stations.setSignsVisible(true);
-  picker.clear();
-
-  await stations.stations.fridge.setOpen(next === 'fridge');
-  refreshTargets();
 }
 
 // ------------------------------------------------------ ingredients ---
@@ -382,6 +349,9 @@ async function fetchIngredient(id) {
     await chef.moveTo(CHEF_X[it.store], walk);
     if (stale()) return;
 
+    // Turn to face the shelf before reaching, so the chef works the station
+    // head-on instead of grabbing sideways past their own shoulder.
+    await chef.turnTo(FACE.shelf, 150);
     await chef.reachAt(it.home, reach);
     if (stale()) return;
 
@@ -396,6 +366,7 @@ async function fetchIngredient(id) {
     await chef.moveTo(CHEF_X.counter, walk);
     if (stale()) return;
 
+    await chef.turnTo(FACE.camera, 150);
     await chef.reachAt(BOWL_DROP, reach);
     if (stale()) return;
 
@@ -421,7 +392,7 @@ function removeIngredient(id) {
   if (!game.picked.has(id)) return;
   State.togglePick(id);
   bowl.remove(id);
-  items.restore(id, activeStation === items.get(id)?.store);
+  items.restore(id, true); // tags are always up during picking
   SFX.remove();
   updateStationCounts(remainingCounts());
   refreshTargets();
@@ -449,9 +420,7 @@ async function cookSequenceBody() {
   el('action-btn').disabled = true;
   el('recipe').hidden = true;
 
-  activeStation = null;
-  setActiveStation(null);
-  items.showLabelsFor(null);
+  items.setLabelsVisible(false);
   stations.stations.fridge.setOpen(false);
 
   const status = el('cook-status');
@@ -464,6 +433,7 @@ async function cookSequenceBody() {
   const ingredients = [...game.picked].map(getIngredient);
 
   await chef.moveTo(CHEF_X.counter, 260);
+  await chef.turnTo(FACE.camera, 150);
 
   SFX.mix();
   await bowl.mix(ingredients);

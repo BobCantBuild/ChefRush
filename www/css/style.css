@@ -248,6 +248,7 @@ body { user-select: none; -webkit-user-select: none; }
 }
 .station-bar.is-locked { opacity: 0.45; pointer-events: none; }
 
+/* Read-out only: items are tapped in the 3D kitchen, not here. */
 .station-btn {
   position: relative;
   display: flex;
@@ -261,10 +262,8 @@ body { user-select: none; -webkit-user-select: none; }
   border-radius: var(--r-md);
   color: var(--ink);
   font-family: inherit;
-  cursor: pointer;
-  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.2s ease;
 }
-.station-btn:active { transform: scale(0.96); }
 .station-icon { font-size: 22px; line-height: 1; }
 .station-name {
   font-size: 11px;
@@ -272,8 +271,6 @@ body { user-select: none; -webkit-user-select: none; }
   color: var(--muted);
   letter-spacing: 0.02em;
 }
-.station-btn.is-active { background: rgba(255, 122, 61, 0.18); border-color: var(--accent); }
-.station-btn.is-active .station-name { color: var(--accent); }
 .station-btn.is-empty { opacity: 0.45; }
 
 .station-count {
