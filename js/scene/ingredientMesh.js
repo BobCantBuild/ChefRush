@@ -4,14 +4,18 @@ import * as THREE from '../../vendor/three.module.js';
 // no asset pipeline, no licensing, and a new ingredient costs one data entry.
 // Geometries are shared across every instance of a shape; only materials vary.
 
+// Smoother than before — enough segments that the rounded foods read as food
+// rather than faceted blobs. Boxes keep hard edges; everything else is smooth.
 const GEOMETRIES = {
-  sphere:   () => new THREE.SphereGeometry(0.5, 12, 9),
-  cube:     () => new THREE.BoxGeometry(0.8, 0.8, 0.8),
-  cylinder: () => new THREE.CylinderGeometry(0.4, 0.4, 0.85, 12),
-  cone:     () => new THREE.ConeGeometry(0.45, 1.0, 10),
-  torus:    () => new THREE.TorusGeometry(0.36, 0.17, 8, 14),
-  slab:     () => new THREE.BoxGeometry(0.95, 0.24, 0.7),
+  sphere:   () => new THREE.SphereGeometry(0.5, 20, 14),
+  cube:     () => new THREE.BoxGeometry(0.78, 0.78, 0.78),
+  cylinder: () => new THREE.CylinderGeometry(0.4, 0.4, 0.85, 20),
+  cone:     () => new THREE.ConeGeometry(0.46, 1.0, 18),
+  torus:    () => new THREE.TorusGeometry(0.34, 0.17, 12, 22),
+  slab:     () => new THREE.BoxGeometry(0.95, 0.26, 0.7),
 };
+
+const SMOOTH = new Set(['sphere', 'cylinder', 'cone', 'torus']);
 
 const geoCache = new Map();
 const matCache = new Map();
@@ -26,27 +30,33 @@ function geometryFor(shape) {
 
 function materialFor(color) {
   if (!matCache.has(color)) {
-    matCache.set(color, new THREE.MeshLambertMaterial({ color, flatShading: true }));
+    // Smooth shading: the rounded foods catch a soft highlight instead of
+    // looking faceted. Boxes keep their hard edges either way.
+    matCache.set(color, new THREE.MeshLambertMaterial({ color, flatShading: false }));
   }
   return matCache.get(color);
 }
 
 /**
  * @param {object} ing entry from data/ingredients.js
+ * @param {boolean} upright keep the item standing (shelf) vs tumbled (bowl)
  * @returns {THREE.Mesh} with `userData.ingredientId` set
  */
-export function createIngredientMesh(ing) {
+export function createIngredientMesh(ing, upright = false) {
   const mesh = new THREE.Mesh(geometryFor(ing.shape), materialFor(ing.color).clone());
   const s = (ing.scale ?? 1) * 0.42;
   mesh.scale.setScalar(s);
   mesh.userData.ingredientId = ing.id;
   mesh.userData.baseScale = s;
-  // A little random tilt so a bowlful never looks like a stack of clones.
-  mesh.rotation.set(
-    Math.random() * Math.PI,
-    Math.random() * Math.PI,
-    Math.random() * Math.PI,
-  );
+
+  if (upright) {
+    // Standing on a shelf: just a spin and the faintest tilt, so a row of
+    // items looks placed rather than dumped.
+    mesh.rotation.set((Math.random() - 0.5) * 0.2, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.2);
+  } else {
+    // In the bowl: fully random so a bowlful never looks like a stack of clones.
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+  }
   return mesh;
 }
 

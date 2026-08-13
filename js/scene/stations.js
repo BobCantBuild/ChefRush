@@ -32,6 +32,12 @@ function canister(x, y, z, rad = 0.13, h = 0.26, color = 0xd9d2c0) {
   return m;
 }
 
+/** Translucent pale-blue glass, for the fridge shelves. */
+const glassMat = () => new THREE.MeshLambertMaterial({ color: 0xbcd6ea, transparent: true, opacity: 0.4, flatShading: true });
+
+/** The three fridge shelf-surface heights, shared by the shelves and the slots. */
+const fridgeShelfYs = () => [2.12, 1.5, 0.88];
+
 /** A taller bottle with a narrow neck, standing on its base at (x, y, z). */
 function bottle(x, y, z, color = 0x6fae5b) {
   const g = new THREE.Group();
@@ -77,13 +83,21 @@ function buildFridge() {
 
   const W = 1.5, H = 3.1, D = 1.15;
 
+  // steel body + a bright plastic liner so the inside reads as a real cabinet
   group.add(box(W, H, D, steel(), 0, H / 2, 0));
-  // recessed dark interior
-  group.add(box(W - 0.2, H - 0.35, D - 0.12, new THREE.MeshLambertMaterial({ color: 0xe8edf4, flatShading: true }), 0, H / 2, 0.06));
+  const liner = new THREE.MeshLambertMaterial({ color: 0xf1f6fb, flatShading: true });
+  group.add(box(W - 0.16, H - 0.3, D - 0.08, liner, 0, H / 2, 0.05));
+  // back wall a touch darker for depth
+  group.add(box(W - 0.24, H - 0.4, 0.04, new THREE.MeshLambertMaterial({ color: 0xdbe6f0, flatShading: true }), 0, H / 2, -0.42));
 
-  // interior shelf boards
-  for (let i = 0; i < 3; i++) {
-    group.add(box(W - 0.26, 0.05, D - 0.2, steelDk(), 0, 0.85 + i * 0.62, 0.06));
+  // Glass shelves that clearly span the interior — items are grounded on top of
+  // these. A steel lip along the front edge catches the light so each shelf
+  // reads as a real, separate surface rather than a faint line.
+  const SHELF_Y = fridgeShelfYs();
+  const shelfFront = 0.05 + (D - 0.26) / 2;
+  for (const y of SHELF_Y) {
+    group.add(box(W - 0.22, 0.035, D - 0.26, glassMat(), 0, y, 0.05));
+    group.add(box(W - 0.22, 0.055, 0.035, steelDk(), 0, y, shelfFront));
   }
 
   // door, hinged on the left edge so it swings toward the player
@@ -105,7 +119,7 @@ function buildFridge() {
   door.add(bottle(0.9, -0.28, -0.12, 0xe6c34a));
 
   const light = new THREE.PointLight(0xfff2d0, 0, 3);
-  light.position.set(0, 1.6, 0.2);
+  light.position.set(0, 2.0, 0.25);
   group.add(light);
 
   let isOpen = false;
@@ -114,7 +128,7 @@ function buildFridge() {
     isOpen = open;
     const from = door.rotation.y;
     const to = open ? -2.0 : 0;
-    light.intensity = open ? 1.6 : 0;
+    light.intensity = open ? 1.7 : 0;
     return tween({
       duration: CONFIG.anim.doorSwing,
       ease: open ? Ease.quadOut : Ease.backOut,
@@ -124,25 +138,28 @@ function buildFridge() {
 
   group.add(stationSign('FRIDGE', H + 0.34));
 
-  // Stock the interior so an opened fridge looks full. The round's real
-  // ingredients occupy the front of the three upper boards (z = 0.06); this
-  // clutter sits behind them and in the space below the lowest board, so it
-  // never lands where a fetchable item will be placed.
-  [2.09, 1.47].forEach((by, r) => {
+  // Stock the shelves so the open fridge looks full. This clutter sits at the
+  // back of the top two glass shelves, behind where the round's real items are
+  // grounded, so it never lands where a fetchable item goes.
+  const [topY, midY] = SHELF_Y;
+  [topY, midY].forEach((by, r) => {
     for (let c = 0; c < 3; c++) {
-      group.add(canister((c - 1) * 0.42, by + 0.03, -0.24, 0.12, 0.28 - (c % 2) * 0.07, DECO[(r * 3 + c) % DECO.length]));
+      group.add(canister((c - 1) * 0.42, by, -0.26, 0.12, 0.26 - (c % 2) * 0.06, DECO[(r * 3 + c) % DECO.length]));
     }
   });
-  // crisper drawer with a few vegetables, on the interior floor
-  group.add(box(W - 0.34, 0.34, D - 0.4, new THREE.MeshLambertMaterial({ color: 0xdfe7f0, transparent: true, opacity: 0.5, flatShading: true }), 0, 0.36, 0.04));
-  [[-0.32, 0xe4573b], [0, 0x6fae5b], [0.32, 0xf2b134]].forEach(([x, c]) => {
-    const veg = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), decoMat(c));
-    veg.position.set(x, 0.46, 0.04);
+
+  // pull-out crisper drawer at the very bottom, with a few vegetables in it
+  const drawer = new THREE.MeshLambertMaterial({ color: 0xe6eef6, transparent: true, opacity: 0.55, flatShading: true });
+  group.add(box(W - 0.24, 0.36, D - 0.3, drawer, 0, 0.42, 0.05));
+  group.add(box(W - 0.24, 0.05, 0.03, steelDk(), 0, 0.42, shelfFront)); // drawer lip
+  [[-0.32, 0xe4573b], [0, 0x6fae5b], [0.32, 0xf2b134], [0.16, 0xd98f3d]].forEach(([x, c]) => {
+    const veg = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), decoMat(c));
+    veg.position.set(x, 0.5, 0.05);
     group.add(veg);
   });
 
-  // 3 across, on the interior boards
-  const slot = gridSlot(3, 0.45, (x, row) => new THREE.Vector3(x, 2.02 - row * 0.62, 0.06));
+  // items are grounded on the three shelf surfaces, 3 across
+  const slot = gridSlot(3, 0.45, (x, row) => new THREE.Vector3(x, SHELF_Y[Math.min(row, 2)], 0.08));
 
   return { group, slot, setOpen };
 }
@@ -174,10 +191,10 @@ function buildPantry() {
     group.add(bottle(1.16, by, 0.34, DECO[(r * 2 + 3) % DECO.length]));
   });
 
-  // 3 across, top board then bottom board. Spacing is deliberately tighter
-  // than the boards are wide: the slot spread plus its name tags has to fit
-  // inside the zoomed camera framing, or edge items land off-screen.
-  const slot = gridSlot(3, 0.6, (x, row) => new THREE.Vector3(x, 2.98 - row * 0.78, 0.34));
+  // 3 across, on the two board surfaces (grounded on top). Spacing is tighter
+  // than the boards are wide so the spread plus its name tags stays on screen.
+  const PY = [2.88, 2.10];
+  const slot = gridSlot(3, 0.6, (x, row) => new THREE.Vector3(x, PY[Math.min(row, 1)], 0.34));
 
   return { group, slot, setOpen: () => Promise.resolve() };
 }
@@ -188,19 +205,18 @@ function buildPantry() {
  *
  * `wide` is the only one the game uses now: it is angled in close enough that
  * every name tag at both stations is readable without tapping into a station,
- * while still keeping the island, the bowl and the whole chef in shot. Moving
+ * while still keeping the counter, the bowl and the whole chef in shot. Moving
  * it further out shrinks the tags past legibility, so change it with care.
  */
 export const FRAMING = {
-  wide:    { pos: new THREE.Vector3(-0.4, 4.3, 5.6),  target: new THREE.Vector3(-0.5, 2.3, -3.3) },
-  counter: { pos: new THREE.Vector3(-0.6, 2.8, 3.6),  target: new THREE.Vector3(-0.7, 1.25, -0.8) },
+  wide:    { pos: new THREE.Vector3(-0.4, 4.3, 5.6),  target: new THREE.Vector3(-0.4, 2.25, -3.2) },
 };
 
 /** Where the chef stands to work each station. */
 export const CHEF_X = {
   fridge: -2.05,
   pantry: 0.75,
-  counter: -0.85,
+  counter: -0.4, // in front of the bowl on the back counter
 };
 
 export function createStations() {

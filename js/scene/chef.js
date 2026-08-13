@@ -28,10 +28,10 @@ export const CHARACTERS = {
   },
 };
 
-// Far enough back in the aisle that the island top does not clip the chef's
-// legs from the wide camera.
-const REST_Z = -1.95;
-const REST_X = -0.85;
+// The chef works just in front of the counter (nothing blocks the view now
+// that the island is gone), and reaches back to the counter and the stations.
+const REST_Z = -1.6;
+const REST_X = -0.4;
 const ARM_LEN = 0.78;
 const TWO_PI = Math.PI * 2;
 
@@ -88,18 +88,28 @@ export function createChef(characterId = 'female') {
   const legR = buildLeg(1);
   body.add(legL, legR);
 
-  // torso in chef whites
-  body.add(box(preset.shoulders * 1.9, 0.76, 0.36, mat(preset.shirt), 0, 1.07, 0));
+  // torso: a white double-breasted chef's coat
+  const shirtMat = mat(preset.shirt);
+  const w = preset.shoulders * 1.9;
+  body.add(box(w, 0.78, 0.36, shirtMat, 0, 1.08, 0));
+  // coat overlap seam down the centre and two rows of buttons
+  body.add(box(0.06, 0.7, 0.03, mat(darken(preset.shirt, 0.9)), 0, 1.1, 0.185));
+  const buttonMat = mat(darken(preset.apron, 0.7));
+  for (let r = 0; r < 3; r++) {
+    const y = 1.34 - r * 0.19;
+    body.add(ball(0.028, buttonMat, -0.1, y, 0.19));
+    body.add(ball(0.028, buttonMat, 0.1, y, 0.19));
+  }
+  // collar
+  body.add(box(0.34, 0.1, 0.34, shirtMat, 0, 1.5, 0));
 
-  // apron: one front panel with a waist tie and shoulder straps
+  // waist apron over the lower half of the coat
   const apronMat = mat(preset.apron);
-  body.add(box(preset.shoulders * 1.5, 0.92, 0.05, apronMat, 0, 0.98, 0.19));
+  body.add(box(preset.shoulders * 1.7, 0.5, 0.05, apronMat, 0, 0.68, 0.19));
   body.add(box(preset.shoulders * 1.95, 0.1, 0.38, mat(darken(preset.apron, 0.72)), 0, 0.92, 0));
-  body.add(box(0.09, 0.36, 0.04, apronMat, -0.14, 1.4, 0.19));
-  body.add(box(0.09, 0.36, 0.04, apronMat, 0.14, 1.4, 0.19));
 
   // neck
-  body.add(box(0.17, 0.16, 0.17, mat(preset.skin), 0, 1.55, 0));
+  body.add(box(0.17, 0.14, 0.17, mat(preset.skin), 0, 1.56, 0));
 
   // head + a plain friendly face
   const head = new THREE.Group();

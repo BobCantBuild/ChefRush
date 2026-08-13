@@ -4,8 +4,8 @@ import { Ease, lerp, tween } from '../util/anim.js';
 import { blendColors, createIngredientMesh } from './ingredientMesh.js';
 import { createContactShadow } from './kitchen.js';
 
-/** Left-hand end of the front island, where the mixing bowl sits. */
-export const BOWL_HOME = new THREE.Vector3(-0.95, 1.03, 0.35);
+/** Left end of the back counter, where the chef preps the mixing bowl. */
+export const BOWL_HOME = new THREE.Vector3(-0.4, 1.03, -2.6);
 /** The bowl is authored at radius ~1; the kitchen needs it much smaller. */
 export const BOWL_SCALE = 0.42;
 

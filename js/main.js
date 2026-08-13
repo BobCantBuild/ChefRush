@@ -28,10 +28,10 @@ import { showGameChrome, showScreen, toast } from './ui/screens.js';
 
 const el = (id) => document.getElementById(id);
 
-/** Where the chef releases an ingredient over the bowl. */
-const BOWL_DROP = new THREE.Vector3(-0.95, 1.52, 0.35);
-/** Where the finished plate is presented on the island. */
-const PLATE_POS = new THREE.Vector3(-0.95, 1.06, 0.4);
+/** Where the chef releases an ingredient over the bowl (on the back counter). */
+const BOWL_DROP = new THREE.Vector3(-0.4, 1.52, -2.6);
+/** Where the finished plate is presented on the counter. */
+const PLATE_POS = new THREE.Vector3(-0.4, 1.06, -2.55);
 
 let scene, camera, cameraRig, stations, chef, bowl, oven, items, picker;
 let currentPlate = null;
@@ -366,7 +366,8 @@ async function fetchIngredient(id) {
     await chef.moveTo(CHEF_X.counter, walk);
     if (stale()) return;
 
-    await chef.turnTo(FACE.camera, 150);
+    // The bowl sits on the counter behind the chef, so face it to drop in.
+    await chef.turnTo(FACE.shelf, 150);
     await chef.reachAt(BOWL_DROP, reach);
     if (stale()) return;
 
@@ -376,6 +377,7 @@ async function fetchIngredient(id) {
     bowl.add(ing, releaseAt);
 
     chef.lowerArm(reach);
+    chef.turnTo(FACE.camera, 160); // face front again between picks
     updateStationCounts(remainingCounts());
   } finally {
     carried = null;
@@ -433,7 +435,7 @@ async function cookSequenceBody() {
   const ingredients = [...game.picked].map(getIngredient);
 
   await chef.moveTo(CHEF_X.counter, 260);
-  await chef.turnTo(FACE.camera, 150);
+  await chef.turnTo(FACE.shelf, 150); // face the bowl on the counter
 
   SFX.mix();
   await bowl.mix(ingredients);
