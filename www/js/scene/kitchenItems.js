@@ -34,12 +34,17 @@ export function createKitchenItems(scene, stations) {
       list.forEach((id, i) => {
         const ing = getIngredient(id);
 
-        const mesh = createIngredientMesh(ing);
+        const mesh = createIngredientMesh(ing, true); // upright on the shelf
         mesh.scale.multiplyScalar(ITEM_SCALE);
         mesh.userData.baseScale *= ITEM_SCALE;
 
+        // slotWorld gives the shelf *surface*; sit the item on top of it rather
+        // than centring it (which sank half of every item into the shelf).
         const home = stations.slotWorld(store, i, list.length);
         mesh.position.copy(home);
+        const bounds = new THREE.Box3().setFromObject(mesh);
+        mesh.position.y += home.y - bounds.min.y;
+        home.copy(mesh.position);
 
         // Adjacent columns sit close together on screen but a long name like
         // "Strawberry" renders much wider, so neighbouring tags would collide.
