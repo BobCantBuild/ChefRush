@@ -20,11 +20,13 @@ export const CONFIG = {
     max: 9,
   },
 
-  // How long the chef takes to fetch things (ms).
+  // How long the chef takes to fetch things (ms). Kept brisk so a queue of
+  // taps clears quickly and the game feels responsive rather than sluggish.
   chef: {
-    walk: 300,
-    reach: 190,
-    grab: 110,
+    walk: 210,
+    reach: 130,
+    grab: 70,
+    turn: 120,
     fridgeOpen: 260,
   },
 
