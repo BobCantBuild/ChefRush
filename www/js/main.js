@@ -38,6 +38,12 @@ let currentPlate = null;
 let carried = null;          // mesh currently in the chef's hand
 let characterId = getCharacter();
 
+// Taps queue instantly; the chef works through them one fetch at a time while
+// the player keeps tapping. `busy` is the cook/transition lock only.
+let fetchQueue = [];
+let fetching = false;
+let currentFetchId = null;
+
 let lastFrame = 0;
 let elapsed = 0;
 let rafId = null;
@@ -193,7 +199,7 @@ function wireButtons() {
   });
 
   el('action-btn').addEventListener('click', () => {
-    if (game.phase !== Phase.PICKING || busy) return;
+    if (game.phase !== Phase.PICKING || busy || fetching) return;
     if (!State.beginMixing()) return;
     SFX.press();
     runCookSequence();
@@ -254,6 +260,9 @@ function resetScene() {
   items.clear();
   carried = null;
   busy = false;
+  fetchQueue = [];
+  fetching = false;
+  currentFetchId = null;
   chef.resetPose();
   stations.stations.fridge.setOpen(false);
   stations.setSignsVisible(true);
@@ -279,6 +288,9 @@ function setupRound() {
   lowTimeWarned = false;
   busy = false;
   carried = null;
+  fetchQueue = [];
+  fetching = false;
+  currentFetchId = null;
 
   bowl.clear();
   bowl.group.visible = true;
@@ -319,47 +331,67 @@ function setupRound() {
 // ------------------------------------------------------ ingredients ---
 function handleIngredientTap(id) {
   if (game.phase !== Phase.PICKING || busy) return;
-  if (game.picked.has(id)) return; // already in the bowl; remove via the chip
-  const action = State.togglePick(id);
-  if (action === 'added') fetchIngredient(id);
+
+  if (game.picked.has(id)) { removeIngredient(id); return; }
+
+  if (State.togglePick(id) === 'added') {
+    SFX.press();                 // instant click feedback
+    fetchQueue.push(id);
+    processFetchQueue();
+  }
+}
+
+/** Drives the chef through the queued taps, one fetch at a time. */
+async function processFetchQueue() {
+  if (fetching) return;
+  fetching = true;
+  updateActionButton();
+
+  try {
+    while (fetchQueue.length && game.phase === Phase.PICKING) {
+      const id = fetchQueue.shift();
+      if (!game.picked.has(id)) continue; // taken back out before its turn
+      currentFetchId = id;
+      await fetchIngredient(id);
+      currentFetchId = null;
+    }
+  } finally {
+    currentFetchId = null;
+    fetching = false;
+    carried = null;
+    if (game.phase === Phase.PICKING) refreshTargets();
+    updateActionButton();
+  }
 }
 
 /**
  * The chef walks to the station, reaches for the item, carries it back to the
- * island and drops it in the bowl.
+ * counter and drops it in the bowl. One item; the queue calls it repeatedly.
  */
 async function fetchIngredient(id) {
   const it = items.get(id);
   if (!it) return;
 
-  // The round can end mid-walk (timer expiry), and the whole scene is rebuilt
-  // between rounds. Bail out if that happens rather than dropping an ingredient
-  // into the next round's bowl — and always release `busy` in a finally, or a
-  // single interrupted fetch soft-locks every station for the rest of the run.
+  // The round can end mid-walk (timer expiry) and the scene is rebuilt between
+  // rounds; the item can also be tapped back out. Bail cleanly in any of those.
   const round = game.round;
-  const stale = () => game.round !== round || game.phase !== Phase.PICKING;
+  const stale = () => game.round !== round || game.phase !== Phase.PICKING || !game.picked.has(id);
 
-  busy = true;
-  picker.clear();
+  const { walk, reach, grab, turn } = CONFIG.chef;
+  const ing = getIngredient(id);
 
   try {
-    const { walk, reach, grab } = CONFIG.chef;
-    const ing = getIngredient(id);
-
     await chef.moveTo(CHEF_X[it.store], walk);
     if (stale()) return;
 
-    // Turn to face the shelf before reaching, so the chef works the station
-    // head-on instead of grabbing sideways past their own shoulder.
-    await chef.turnTo(FACE.shelf, 150);
+    // Face the shelf head-on before reaching, rather than grabbing sideways.
+    await chef.turnTo(FACE.shelf, turn);
     await chef.reachAt(it.home, reach);
     if (stale()) return;
 
     const mesh = items.take(id);
-    if (mesh) {
-      carried = mesh;
-      SFX.add();
-    }
+    if (mesh) carried = mesh;
+    refreshTargets(); // this item is off the shelf now
     await tween({ duration: grab }).promise;
     if (stale()) return;
 
@@ -367,7 +399,7 @@ async function fetchIngredient(id) {
     if (stale()) return;
 
     // The bowl sits on the counter behind the chef, so face it to drop in.
-    await chef.turnTo(FACE.shelf, 150);
+    await chef.turnTo(FACE.shelf, turn);
     await chef.reachAt(BOWL_DROP, reach);
     if (stale()) return;
 
@@ -375,34 +407,43 @@ async function fetchIngredient(id) {
     carried = null;
     items.consume(id);
     bowl.add(ing, releaseAt);
+    SFX.add();
 
     chef.lowerArm(reach);
-    chef.turnTo(FACE.camera, 160); // face front again between picks
+    chef.turnTo(FACE.camera, turn); // face front again between picks
     updateStationCounts(remainingCounts());
   } finally {
     carried = null;
-    if (game.round === round) {
-      busy = false;
-      refreshTargets();
-    }
   }
 }
 
-/** Removing is done from the recipe card chip, not by walking back. */
+/** Take an item back out — from the queue if not fetched yet, else the bowl. */
 function removeIngredient(id) {
-  if (game.phase !== Phase.PICKING || busy) return;
+  if (game.phase !== Phase.PICKING) return;
   if (!game.picked.has(id)) return;
+  if (id === currentFetchId) return; // can't cancel the item in the chef's hands
+
   State.togglePick(id);
-  bowl.remove(id);
-  items.restore(id, true); // tags are always up during picking
+  const queued = fetchQueue.indexOf(id);
+  if (queued >= 0) {
+    fetchQueue.splice(queued, 1); // never fetched — nothing in the bowl yet
+  } else {
+    bowl.remove(id);
+    items.restore(id, true); // tags are always up during picking
+  }
   SFX.remove();
   updateStationCounts(remainingCounts());
   refreshTargets();
 }
 
+function updateActionButton() {
+  // Ready to cook once something is in play and the chef has finished fetching.
+  el('action-btn').disabled = game.phase !== Phase.PICKING || fetching || game.picked.size === 0;
+}
+
 function handlePick({ picked }) {
   updateRecipeProgress(picked);
-  el('action-btn').disabled = picked.size === 0;
+  updateActionButton();
 }
 
 // ------------------------------------------------------------ cook ---
